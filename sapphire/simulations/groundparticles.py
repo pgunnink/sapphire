@@ -133,7 +133,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         
         """
         N_electron = 0
-        for i in xrange(0,int(N_photon)):
+        for i in range(0,int(N_photon)):
             if np.random.random() < .25:
                 N_electron += 1
         return N_electron
@@ -237,7 +237,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
             n_muons, n_electrons, n_gammas, firstarrival, pulseintegral, \
             pulseintegral_muon, pulseintegral_electron, pulseintegral_gamma, \
             pulseheights, pulseheights_muon, pulseheights_electron, \
-            pulseheights_gamma = \
+            pulseheights_gamma, traces = \
             self.simulate_detector_mips_for_particles(particles, detector, 
                                                       shower_parameters)
             particles['t'] += firstarrival
@@ -250,7 +250,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
                            't': -999, 'integrals': 0., 'integrals_muon': 0.,
                            'integrals_electron': 0., 'integrals_gamma': 0.,
                            'pulseheights': 0., 'pulseheights_muon': 0.,
-                           'pulseheights_electron': 0., 'pulseheights_gamma': 0.}
+                           'pulseheights_electron': 0., 'pulseheights_gamma': 0., 'traces': 0.}
             else:
                 observables = {'n': n_muons + n_electrons + n_gammas,
                                'n_muons': n_muons,
@@ -264,13 +264,14 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
                                'pulseheights': pulseheights,
                                'pulseheights_muon': pulseheights_muon,
                                'pulseheights_electron': pulseheights_electron,
-                               'pulseheights_gamma': pulseheights_gamma}
+                               'pulseheights_gamma': pulseheights_gamma,
+                               'traces': traces}
         else:
             observables = {'n': 0, 'n_muons': 0, 'n_electrons': 0, 'n_gammas': 0,
                            't': -999, 'integrals': 0., 'integrals_muon': 0.,
                            'integrals_electron': 0., 'integrals_gamma': 0.,
                            'pulseheights': 0., 'pulseheights_muon': 0.,
-                           'pulseheights_electron': 0., 'pulseheights_gamma': 0.}
+                           'pulseheights_electron': 0., 'pulseheights_gamma': 0., 'traces': 0.}
 
         return observables
 
@@ -484,12 +485,18 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         # in the list otherwise we don't have a firstarrival time. The solution is to remove all -999
         # values anyway if multiple particles hit the detector.
         if len(arrivaltimes) > 1:
+            #import pdb; pdb.set_trace()
+            arrivaltimes = np.array(arrivaltimes)
             arrivaltimes = arrivaltimes[arrivaltimes > -999]
-        firstarrival = np.min(arrivaltimes) + trigger_delay
+        if len(arrivaltimes) < 1:
+            firstarrival = -999
+        else:
+            firstarrival = np.min(arrivaltimes) + trigger_delay
+
     
         return n_muons, n_electrons, n_gammas, firstarrival, pulseintegral, \
                pulseintegral_muon, pulseintegral_electron, pulseintegral_gamma, \
-               pulseheight, pulseheight_muon, pulseheight_electron, pulseheight_gamma
+               pulseheight, pulseheight_muon, pulseheight_electron, pulseheight_gamma, all_particles_trace
     
     def simulate_trigger(self, detector_observables):
         """Simulate a trigger response.
@@ -1399,8 +1406,9 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
             seeds = self.cq.seeds([sim])[0]
 
-            if self.corsika_energy < (1e14 - 1e10):
-                # Because of the high dcache i/o load I create, all
+            #if self.corsika_energy < (1e14 - 1e10):
+            if False:
+     			# Because of the high dcache i/o load I create, all
                 # CORSIKA simulations with an energy below log(eV) = 14 
                 # were moved to a temporary directory on the stoomboot node.
                 tmpdir = os.environ["TMPDIR"]

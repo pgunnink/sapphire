@@ -137,11 +137,13 @@ class BaseSimulation(object):
             has_triggered, station_observables = \
                 self.simulate_station_response(station,
                                                shower_parameters)
+				
             if has_triggered:
                 event_index = \
                     self.store_station_observables(station_id,
                                                    station_observables)
                 station_events.append((station_id, event_index))
+                #import pdb; pdb.set_trace()
         return station_events
 
     def simulate_station_response(self, station, shower_parameters):
@@ -217,7 +219,8 @@ class BaseSimulation(object):
                                'integrals_gamma': 4 * [-1.],
                                'pulseheights_muon': 4 * [-1.],
                                'pulseheights_electron': 4 * [-1.],
-                               'pulseheights_gamma': 4 * [-1.]}
+                               'pulseheights_gamma': 4 * [-1.],
+                               'traces': 4 * [-1.]}
 
         for detector_id, observables in enumerate(detector_observables, 1):
             for key, value in iteritems(observables):
@@ -226,7 +229,7 @@ class BaseSimulation(object):
                     station_observables[key] = value
                 elif key in ['pulseheights', 'integrals', 'integrals_muon','integrals_electron',
                              'integrals_gamma', 'pulseheights_muon', 'pulseheights_electron',
-                             'pulseheights_gamma']:
+                             'pulseheights_gamma','traces']:
                     idx = detector_id - 1
                     station_observables[key][idx] = value
 
@@ -346,6 +349,7 @@ class BaseSimulation(object):
             station_group = self.data.create_group(self.cluster_group,
                                                    'station_%d' %
                                                    station.number)
+#            import pdb; pdb.set_trace()
             description = ProcessEvents.processed_events_description
             # Add to this description some simulation-only parameters
             description["n_muons1"] = tables.Float32Col(shape=(), dflt=-1.0, pos=22)
