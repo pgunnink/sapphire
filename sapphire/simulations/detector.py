@@ -15,9 +15,9 @@ from ..utils import ceil_in_base
 
 class HiSPARCSimulation(BaseSimulation):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, updated_trigger=False, *args, **kwargs):
         super(HiSPARCSimulation, self).__init__(*args, **kwargs)
-
+        self.updated_trigger = updated_trigger
         self.simulate_and_store_offsets()
 
     def simulate_and_store_offsets(self):

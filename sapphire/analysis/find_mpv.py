@@ -138,7 +138,6 @@ class FindMostProbableValueInSpectrum(object):
         # the number of fit parameters
         if len(x) < 3:
             raise RuntimeError("Number of data points not sufficient")
-
         # fit to a normal distribution
         popt, pcov = curve_fit(gauss, x, y,
                                p0=(y.max(), first_guess, first_guess))

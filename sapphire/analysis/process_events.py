@@ -76,7 +76,7 @@ class ProcessEvents(object):
         'n_peaks': tables.Int16Col(pos=8, shape=4, dflt=-1),
         'pulseheights': tables.Int16Col(pos=9, shape=4, dflt=-1),
         'integrals': tables.Int32Col(pos=10, shape=4, dflt=-1),
-        'traces': tables.Int32Col(pos=11, shape=4, dflt=-1),
+        'traces': tables.Int16Col(pos=11, shape=(4,80), dflt=-1),
         'event_rate': tables.Float32Col(pos=12),
         't1': tables.Float32Col(pos=13, dflt=-1),
         't2': tables.Float32Col(pos=14, dflt=-1),

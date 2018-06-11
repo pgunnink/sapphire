@@ -53,7 +53,6 @@ class BaseSimulation(object):
         self.output_path = output_path
         self.n = n
         self.progress = progress
-
         self._prepare_output_tables()
 
         if seed is not None:
@@ -79,7 +78,6 @@ class BaseSimulation(object):
 
         for (shower_id, shower_parameters) in enumerate(
                 self.generate_shower_parameters()):
-
             chosen_energy = np.log10( shower_parameters['energy'] )
             chosen_core_pos = shower_parameters['core_pos']
             chosen_radius = np.sqrt( chosen_core_pos[0]**2. + chosen_core_pos[1]**2. )
@@ -109,7 +107,6 @@ class BaseSimulation(object):
             if (chosen_energy < (18 + 0.1)) and (chosen_energy > (18 - 0.1)) and chosen_radius > 1000:
                 continue
             """
-            #print(chosen_energy, chosen_radius)
 
             station_events = self.simulate_events_for_shower(shower_parameters)
             # No need to store coincidences of a cluster containing only one station
@@ -142,8 +139,9 @@ class BaseSimulation(object):
                 event_index = \
                     self.store_station_observables(station_id,
                                                    station_observables)
+                print('writing event')
                 station_events.append((station_id, event_index))
-                #import pdb; pdb.set_trace()
+
         return station_events
 
     def simulate_station_response(self, station, shower_parameters):
@@ -168,8 +166,8 @@ class BaseSimulation(object):
         for detector in detectors:
             observables = self.simulate_detector_response(detector,
                                                           shower_parameters)
+            
             detector_observables.append(observables)
-
         return detector_observables
 
     def simulate_detector_response(self, detector, shower_parameters):
@@ -220,7 +218,7 @@ class BaseSimulation(object):
                                'pulseheights_muon': 4 * [-1.],
                                'pulseheights_electron': 4 * [-1.],
                                'pulseheights_gamma': 4 * [-1.],
-                               'traces': 4 * [-1.]}
+                               'traces': np.empty([4,80])}
 
         for detector_id, observables in enumerate(detector_observables, 1):
             for key, value in iteritems(observables):
@@ -232,7 +230,7 @@ class BaseSimulation(object):
                              'pulseheights_gamma','traces']:
                     idx = detector_id - 1
                     station_observables[key][idx] = value
-
+        print(station_observables)
         return station_observables
 
     def store_station_observables(self, station_id, station_observables):
@@ -254,7 +252,7 @@ class BaseSimulation(object):
                 warnings.warn('Unsupported variable')
         row.append()
         events_table.flush()
-
+        
         return events_table.nrows - 1
 
     def store_coincidence(self, shower_id, shower_parameters,
@@ -349,7 +347,6 @@ class BaseSimulation(object):
             station_group = self.data.create_group(self.cluster_group,
                                                    'station_%d' %
                                                    station.number)
-#            import pdb; pdb.set_trace()
             description = ProcessEvents.processed_events_description
             # Add to this description some simulation-only parameters
             description["n_muons1"] = tables.Float32Col(shape=(), dflt=-1.0, pos=22)
@@ -375,7 +372,6 @@ class BaseSimulation(object):
             description["pulseheights_muon"] = tables.Int32Col(shape=4, dflt=-1.0, pos=42)
             description["pulseheights_electron"] = tables.Int32Col(shape=4, dflt=-1.0, pos=43)
             description["pulseheights_gamma"] = tables.Int32Col(shape=4, dflt=-1.0, pos=44)
-
 
             self.data.create_table(station_group, 'events', description,
                                    expectedrows=self.n)

@@ -24,6 +24,7 @@ import shutil
 import os
 from six import iteritems
 
+import warnings
 import numpy as np
 import tables
 import matplotlib
@@ -36,10 +37,11 @@ from ..corsika.corsika_queries import CorsikaQuery
 from ..corsika.particles import particle_id
 from ..utils import pbar, norm_angle, closest_in_list, vector_length, c
 
+TRACE_LENGTH = 80
 
 class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
 
-    def __init__(self, corsikafile_path, max_core_distance, *args, **kwargs):
+    def __init__(self, corsikafile_path, max_core_distance, cutoff_number_of_particles=10, *args, **kwargs):
         """Simulation initialization
 
         :param corsikafile_path: path to the corsika.h5 file containing
@@ -49,7 +51,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
 
         """
         super(GroundParticlesGEANT4Simulation, self).__init__(*args, **kwargs)
-
+        self.cutoff_number_of_particles = cutoff_number_of_particles
         self.corsikafile = tables.open_file(corsikafile_path, 'r')
         self.groundparticles = self.corsikafile.get_node('/groundparticles')
         self.max_core_distance = max_core_distance
@@ -199,7 +201,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         
         # Determine how many particles arrived per 2.5 nanosecond
         plt.clf()
-        n_phot, bin_edges, patches = plt.hist(photontimes,bins=np.linspace(0,200,81))
+        n_phot, bin_edges, patches = plt.hist(photontimes,bins=np.linspace(0,200,TRACE_LENGTH+1))
         t_arr = (0.5*(bin_edges[1:] + bin_edges[:-1]))-1.25
         
         # Simulate the ideal response per nanosecond and combine all single ns responses
@@ -214,7 +216,6 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         for value in trace:
             trace_nikhef.append(self._nikhef_pmt_response(value))
         trace_nikhef = np.array(trace_nikhef)
-
         return trace_nikhef
 
     def simulate_detector_response(self, detector, shower_parameters):
@@ -302,6 +303,30 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         n_electrons = 0
         n_gammas = 0
         particle_types = ['', 'gamma', 'e+', 'e-', '', 'mu+', 'mu-']
+        
+        
+        idx = []
+        idx_rest = []
+        i = 0
+        for particle in particles:
+            if particle['particle_id'] in [2,3]:
+                idx.append(i)
+            else:
+                idx_rest.append(i)
+            i += 1
+        number_of_electrons = len(idx)
+        print('Number of electrons in detector: %s' % number_of_electrons)
+        if number_of_electrons<self.cutoff_number_of_particles:
+            idx.extend(idx_rest[:self.cutoff_number_of_particles-number_of_electrons])
+        
+        idx = np.random.permutation(idx) # shuffle the electrons
+        idx = idx[:self.cutoff_number_of_particles]
+
+        print(idx)
+
+        particles = particles[idx,]
+
+                
         for particle in particles:
             # Determine which particle hit the detector
             particle_id = particle["particle_id"]
@@ -396,16 +421,15 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
                                                   "{}".format(px),
                                                   "{}".format(py),
                                                   "{}".format(pz)])
-                #"""
-                print( "./skibox", "1", particletype,
-                                                  "{}".format(particleenergy),
-                                                  "{}".format(xdetcoord),
-                                                  "{}".format(ydetcoord),
-                                                  "-99889",
-                                                  "{}".format(px),
-                                                  "{}".format(py),
-                                                  "{}".format(pz) )
-                #"""
+                if self.progress:
+                    print( "./skibox", "1", particletype,
+                                                      "{}".format(particleenergy),
+                                                      "{}".format(xdetcoord),
+                                                      "{}".format(ydetcoord),
+                                                      "-99889",
+                                                      "{}".format(px),
+                                                      "{}".format(py),
+                                                      "{}".format(pz) )
     
                 # Determine the number of photons that have arrived at the PMT
                 # and the time it took for the first photon to arrive at the PMT.
@@ -451,7 +475,8 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
             # arrived photons.
             arrived_photons_per_particle = np.append(arrived_photons_per_particle,photontimes)
             arrivaltimes.append(arrivaltime)
-
+        
+            
         # We now have a list with the arrival times of the photons at the PMT (also for individual particles)
         # The next step is to simulate the PMT
         all_particles_trace = self._simulate_PMT(arrived_photons_per_particle)
@@ -485,7 +510,6 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         # in the list otherwise we don't have a firstarrival time. The solution is to remove all -999
         # values anyway if multiple particles hit the detector.
         if len(arrivaltimes) > 1:
-            #import pdb; pdb.set_trace()
             arrivaltimes = np.array(arrivaltimes)
             arrivaltimes = arrivaltimes[arrivaltimes > -999]
         if len(arrivaltimes) < 1:
@@ -493,10 +517,9 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         else:
             firstarrival = np.min(arrivaltimes) + trigger_delay
 
-    
         return n_muons, n_electrons, n_gammas, firstarrival, pulseintegral, \
                pulseintegral_muon, pulseintegral_electron, pulseintegral_gamma, \
-               pulseheight, pulseheight_muon, pulseheight_electron, pulseheight_gamma, all_particles_trace
+               pulseheight, pulseheight_muon, pulseheight_electron, pulseheight_gamma, np.array(all_particles_trace*1e3,dtype=int)
     
     def simulate_trigger(self, detector_observables):
         """Simulate a trigger response.
@@ -515,8 +538,11 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
                              if observables['pulseheights'] > 30])
         detectors_high = sum([True for observables in detector_observables
                               if observables['pulseheights'] > 70])
-
-        if n_detectors == 4 and (detectors_high >= 2 or detectors_low >= 3):
+        if self.updated_trigger:
+            treshold_low = 2
+        else:
+            treshold_low = 3
+        if n_detectors == 4 and (detectors_high >= 2 or detectors_low >= treshold_low):
             return True
         elif n_detectors == 2 and detectors_low >= 2:
             return True
@@ -1228,7 +1254,8 @@ class MultipleGroundParticlesSimulation(GroundParticlesSimulation):
         """
         # Super of the super class.
         super(GroundParticlesSimulation, self).__init__(*args, **kwargs)
-
+        
+        
         self.cq = CorsikaQuery(corsikaoverview_path)
         self.max_core_distance = max_core_distance
         self.min_energy = min_energy
@@ -1264,7 +1291,7 @@ class MultipleGroundParticlesSimulation(GroundParticlesSimulation):
             sim = self.select_simulation()
             if sim is None:
                 continue
-
+            
             corsika_parameters = {'zenith': sim['zenith'],
                                   'size': sim['n_electron'],
                                   'energy': sim['energy'],
@@ -1321,6 +1348,8 @@ class MultipleGroundParticlesSimulation(GroundParticlesSimulation):
         return sim
 
 
+        
+        
 class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
     """Use multiple CORSIKA simulated air showers in one run.
@@ -1342,7 +1371,7 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
     DATA = '/dcache/hisparc/kaspervd/corsika_low_energy_cuts/data/{seeds}/corsika.h5'
 
     def __init__(self, corsikaoverview_path, max_core_distance, min_energy,
-                 max_energy, *args, **kwargs):
+                 max_energy, cutoff_number_of_particles=10, zenith=None, *args, **kwargs):
         """Simulation initialization
 
         :param corsikaoverview_path: path to the corsika_overview.h5 file
@@ -1354,7 +1383,11 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
         """
         super(GroundParticlesGEANT4Simulation, self).__init__(*args, **kwargs)
-
+        #super(MultipleGroundParticlesGEANT4Simulation, self).__init__(*args, **kwargs)
+        #super().__init__(*args, **kwargs)
+        
+        self.zenith = zenith # this value is later checked by select_simulation
+        self.cutoff_number_of_particles = cutoff_number_of_particles
         self.cq = CorsikaQuery(corsikaoverview_path)
         self.max_core_distance = max_core_distance
         self.min_energy = min_energy
@@ -1393,7 +1426,6 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
             sim = self.select_simulation()
             if sim is None:
                 continue
-
             corsika_parameters = {'zenith': sim['zenith'],
                                   'size': sim['n_electron'],
                                   'energy': sim['energy'],
@@ -1405,6 +1437,7 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
             self.cr_particle = sim['particle_id']
 
             seeds = self.cq.seeds([sim])[0]
+            print(seeds)
 
             #if self.corsika_energy < (1e14 - 1e10):
             if False:
@@ -1424,6 +1457,7 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
                     for j in range(n_reuse):
                         ext_timestamp = (now + i + (float(j) / n_reuse)) * int(1e9)
+                        
                         x, y = self.generate_core_position(r)
                         self.core_distance = np.sqrt(x**2 + y**2)
                         self.shower_azimuth = self.generate_azimuth()
@@ -1446,6 +1480,13 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
                 with tables.open_file(self.DATA.format(seeds=seeds), 'r') as data:
                     try:
                         self.groundparticles = data.get_node('/groundparticles')
+                        '''
+                        n = 0 
+                        for row in self.groundparticles:
+                            if row['particle_id'] in [2,3]:
+                                n+=1
+                        print('Out of %s particles %s are electrons, %.2f percent' % (len(self.groundparticles),n, n/len(self.groundparticles)))
+                        '''
                     except tables.NoSuchNodeError:
                         print('No groundparticles in %s' % seeds)
                         continue
@@ -1478,8 +1519,12 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
         """
         energy = self.generate_energy(self.min_energy, self.max_energy)
         shower_energy = closest_in_list(log10(energy), self.available_energies)
-
-        zenith = self.generate_zenith()
+        
+        
+        if self.zenith is None:
+            zenith = self.generate_zenith()
+        else:
+            zenith = self.zenith
         shower_zenith = closest_in_list(np.degrees(zenith),
                                         self.available_zeniths[shower_energy])
 
