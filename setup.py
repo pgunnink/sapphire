@@ -1,8 +1,7 @@
-from setuptools import setup, find_packages
-
+from setuptools import find_packages, setup
 
 # set version number and write to sapphire/version.py
-version = '1.5.1'
+version = '1.6.0'
 
 version_py = """\
 # Created by setup.py. Do not edit.
@@ -36,12 +35,14 @@ setup(name='hisparc-sapphire',
           'Topic :: Scientific/Engineering',
           'Topic :: Education',
           'License :: OSI Approved :: GNU General Public License v3 (GPLv3)'],
-      scripts=['sapphire/corsika/generate_corsika_overview',
-               'sapphire/corsika/qsub_corsika',
-               'sapphire/corsika/qsub_store_corsika_data',
-               'sapphire/corsika/store_corsika_data',
-               'sapphire/data/update_local_data',
-               'sapphire/data/extend_local_data'],
+      entry_points={
+        'console_scripts': [
+            'generate_corsika_overview = sapphire.corsika.generate_corsika_overview:main',
+            'qsub_corsika = sapphire.corsika.qsub_corsika:main',
+            'qsub_store_corsika_data = sapphire.corsika.qsub_store_corsika_data:main',
+            'store_corsika_data = sapphire.corsika.store_corsika_data:main',
+            'update_local_data = sapphire.data.update_local_data:main',
+            'extend_local_data = sapphire.data.extend_local_data:main']},
       package_data={'sapphire': ['data/*.json',
                                  'data/*/*.json',
                                  'data/current/*.tsv',
@@ -64,6 +65,6 @@ setup(name='hisparc-sapphire',
       install_requires=['numpy', 'scipy', 'tables>=3.3.0',
                         'progressbar2>=3.7.0', 'lazy', 'mock', 'six'],
       extras_require={
-          'dev': ['Sphinx', 'flake8', 'pep8-naming', 'coverage'],
+          'dev': ['Sphinx', 'flake8', 'pep8-naming', 'coverage', 'flake8-isort'],
           'astropy': ["astropy"]},
       test_suite="sapphire.tests",)

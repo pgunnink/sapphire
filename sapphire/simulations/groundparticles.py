@@ -17,7 +17,7 @@ Example usage::
 """
 from __future__ import print_function
 
-from math import pi, sin, cos, tan, sqrt, log10
+from math import cos, log10, pi, sin, sqrt, tan
 from time import time
 import subprocess
 import shutil
@@ -31,11 +31,11 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
-from .gammas import simulate_detector_mips_gammas
-from .detector import HiSPARCSimulation, ErrorlessSimulation
 from ..corsika.corsika_queries import CorsikaQuery
-from ..corsika.particles import particle_id
-from ..utils import pbar, norm_angle, closest_in_list, vector_length, c
+
+from ..utils import c, closest_in_list, norm_angle, pbar, vector_length
+from .detector import ErrorlessSimulation, HiSPARCSimulation
+from .gammas import simulate_detector_mips_gammas
 
 TRACE_LENGTH = 80
 

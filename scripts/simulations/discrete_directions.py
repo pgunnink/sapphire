@@ -1,14 +1,12 @@
 import itertools
 
 import numpy as np
+
 import matplotlib.pyplot as plt
 
+from sapphire.analysis.direction_reconstruction import (DirectAlgorithm, DirectAlgorithmCartesian2D,
+                                                        DirectAlgorithmCartesian3D, FitAlgorithm)
 from sapphire.clusters import HiSPARCStations, ScienceParkCluster, SingleDiamondStation
-from sapphire.analysis.direction_reconstruction import (DirectAlgorithm,
-                                                        DirectAlgorithmCartesian3D,
-                                                        DirectAlgorithmCartesian2D,
-                                                        FitAlgorithm)
-
 
 TIME_RESOLUTION = 2.5  # nanoseconds
 C = .3  # lightspeed m/ns

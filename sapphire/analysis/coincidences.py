@@ -34,9 +34,10 @@ from __future__ import print_function
 
 import os.path
 
-import tables
 import numpy as np
-from progressbar import ProgressBar, ETA, Bar, Percentage
+import tables
+
+from progressbar import ETA, Bar, Percentage, ProgressBar
 from six.moves import range
 
 from . import process_events
@@ -724,8 +725,8 @@ def get_events(data, stations, coincidence, timestamps, get_raw_traces=False):
         :meth:`~Coincidences.search_coincidences`.
     :param timestamps: the list of timestamps, as returned by
         :meth:`~Coincidences.search_coincidences`.
-    :param get_raw_traces: boolean.  If true, return the compressed ADC
-        values instead of the uncompressed traces.
+    :param get_raw_traces: boolean.  If true, return the raw ADC
+        values instead of the baseline corrected traces.
 
     :return: a list of tuples.  Each tuple consists of (station, event,
         traces), where event is the event row from PyTables and traces is
@@ -742,7 +743,6 @@ def get_events(data, stations, coincidence, timestamps, get_raw_traces=False):
                                 200)[np.where(event['traces'] >= 0)]
             # transpose to get expected format
             traces = (process.get_traces_for_event(event) - baseline).T
-            traces = traces * -0.57
         else:
             traces = [process.group.blobs[x] for x in event['traces']]
         events.append((stations[station], event, traces))

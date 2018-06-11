@@ -2,12 +2,11 @@ import os
 import unittest
 
 from sapphire.tests.validate_results import validate_results
-from .perform_simulation import (create_tempfile_path,
-                                 perform_groundparticlessimulation,
-                                 perform_groundparticlesgammasimulation,
-                                 perform_flatfrontsimulation,
-                                 perform_nkgldfsimulation,
-                                 test_data_path, test_data_gamma, test_data_flat, test_data_nkg)
+
+from .perform_simulation import (create_tempfile_path, perform_flatfrontsimulation,
+                                 perform_groundparticlesgammasimulation, perform_groundparticlessimulation,
+                                 perform_nkgldfsimulation, test_data_flat, test_data_gamma, test_data_nkg,
+                                 test_data_path)
 
 
 class GroundparticlesSimulationAcceptanceTest(unittest.TestCase):

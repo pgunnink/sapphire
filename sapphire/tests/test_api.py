@@ -1,13 +1,15 @@
 import unittest
-from datetime import date, datetime
-from time import time
-import six
-from six.moves.urllib.error import HTTPError, URLError
 import warnings
-from os import path, extsep
+
+from datetime import date, datetime
+from os import extsep, path
+from time import time
+
+import six
 
 from mock import patch, sentinel
 from numpy.testing import assert_allclose, assert_equal
+from six.moves.urllib.error import HTTPError, URLError
 
 from sapphire import api
 
@@ -428,15 +430,15 @@ class StationTests(unittest.TestCase):
 
     def test_pulse_height(self):
         names = ('pulseheight', 'ph1', 'ph2', 'ph3', 'ph4')
-        data = self.station.pulse_height(2013, 1, 1)
+        data = self.station.pulse_height(2018, 4, 1)
         self.assertEqual(data.dtype.names, names)
-        self.assertTrue((data['pulseheight'] == list(range(0, 2500, 10))).all())
+        self.assertTrue((data['pulseheight'] == list(range(0, 4096, 16))).all())
 
     def test_pulse_integral(self):
         names = ('pulseintegral', 'pi1', 'pi2', 'pi3', 'pi4')
-        data = self.station.pulse_integral(2013, 1, 1)
+        data = self.station.pulse_integral(2018, 4, 1)
         self.assertEqual(data.dtype.names, names)
-        self.assertTrue((data['pulseintegral'] == list(range(0, 62500, 250))).all())
+        self.assertTrue((data['pulseintegral'] == list(range(0, 51200, 100))).all())
 
     def test_barometer(self):
         names = ('timestamp', 'air_pressure')

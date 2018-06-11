@@ -1,7 +1,7 @@
-import unittest
 import os
+import unittest
 
-from mock import sentinel, patch, MagicMock
+from mock import MagicMock, patch, sentinel
 
 from sapphire.corsika import corsika_queries
 
@@ -100,13 +100,13 @@ class MockCorsikaQueryTest(unittest.TestCase):
         self.cq.all_particles = ['electron']
         self.cq.all_energies = [15.5]
         result = self.cq.simulations(particle='electron', energy=15.5,
-                                     zenith=22.5, azimuth=90.)
+                                     zenith=0., azimuth=0.)
         self.assertEqual(result, sentinel.simulations)
         mock_perform.assert_called_with(
             '(particle_id == 3) & '
             '(abs(log10(energy) - 15.5) < 1e-4) & '
-            '(abs(zenith - 0.392699081699) < 1e-4) & '
-            '(abs(azimuth - 1.57079632679) < 1e-4)', False)
+            '(abs(zenith - 0.0) < 1e-4) & '
+            '(abs(azimuth - 0.0) < 1e-4)', False)
 
     def test_filter(self):
         filter = self.cq.filter('foo', 123)
