@@ -309,7 +309,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         idx_rest = []
         i = 0
         for particle in particles:
-            if particle['particle_id'] in [2,3]:
+            if particle['particle_id'] in [2,3,5,6]:
                 idx.append(i)
             else:
                 idx_rest.append(i)
