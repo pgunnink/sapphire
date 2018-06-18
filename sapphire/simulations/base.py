@@ -82,15 +82,18 @@ class BaseSimulation(object):
             chosen_energy = np.log10( shower_parameters['energy'] )
             chosen_core_pos = shower_parameters['core_pos']
             chosen_radius = np.sqrt( chosen_core_pos[0]**2. + chosen_core_pos[1]**2. )
-            """
+            
+            '''
             if (chosen_energy < (12.5 + 0.1)) and (chosen_energy > (12.5 - 0.1)) and chosen_radius > 50:
                 continue
-            if (chosen_energy < (13 + 0.1)) and (chosen_energy > (13 - 0.1)) and chosen_radius > 50:
+            '''
+            if (chosen_energy < (13 + 0.1)) and (chosen_energy > (13 - 0.1)) and chosen_radius > 60:
                 continue
-            if (chosen_energy < (13.5 + 0.1)) and (chosen_energy > (13.5 - 0.1)) and chosen_radius > 65:
+            if (chosen_energy < (13.5 + 0.1)) and (chosen_energy > (13.5 - 0.1)) and chosen_radius > 60:
                 continue
-            if (chosen_energy < (14 + 0.1)) and (chosen_energy > (14 - 0.1)) and chosen_radius > 75:
+            if (chosen_energy < (14 + 0.1)) and (chosen_energy > (14 - 0.1)) and chosen_radius > 80:
                 continue
+            '''
             if (chosen_energy < (14.5 + 0.1)) and (chosen_energy > (14.5 - 0.1)) and chosen_radius > 110:
                 continue
             if (chosen_energy < (15 + 0.1)) and (chosen_energy > (15 - 0.1)) and chosen_radius > 150:
@@ -107,7 +110,7 @@ class BaseSimulation(object):
                 continue
             if (chosen_energy < (18 + 0.1)) and (chosen_energy > (18 - 0.1)) and chosen_radius > 1000:
                 continue
-            """
+            '''
 
             station_events = self.simulate_events_for_shower(shower_parameters)
             # No need to store coincidences of a cluster containing only one station
