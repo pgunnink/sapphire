@@ -309,6 +309,8 @@ class KascadeDirectionReconstruction(DirectionReconstruction):
         core_r, core_phi = self._calc_core_position_rphi_for_kascade_event(kascade_event)
         reference_phi = self._calc_reference_phi_for_kascade_event(kascade_event)
 
+        #TODO: find traces from the hisparc_event
+
         dst_row['id'] = hisparc_event['event_id']
         dst_row['station_id'] = 0
         dst_row['r'] = core_r
@@ -327,6 +329,8 @@ class KascadeDirectionReconstruction(DirectionReconstruction):
         dst_row['reconstructed_theta'] = reconstructed_theta
         dst_row['reconstructed_phi'] = reconstructed_phi
         dst_row['min_n134'] = min(hisparc_event['n1'], hisparc_event['n3'], hisparc_event['n4'])
+        dst_row['traces'] = hisparc_event['traces_full']
+
 
         dst_row['k_energy'] = kascade_event['energy']
         dst_row['k_core_pos'] = kascade_event['core_pos']

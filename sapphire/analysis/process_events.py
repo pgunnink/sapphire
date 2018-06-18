@@ -251,12 +251,17 @@ class ProcessIndexedEvents(ProcessEvents):
 
         timings = self.process_traces()
 
-        for event, (t1, t2, t3, t4) in izip(table.itersequence(self.indexes),
-                                            timings):
+        for idx, event, (t1, t2, t3, t4) in izip(self.indexes,
+                                             table.itersequence(self.indexes), timings):
             event['t1'] = t1
             event['t2'] = t2
             event['t3'] = t3
             event['t4'] = t4
+            event['traces_full'] = self.get_traces_for_event_index(idx).T
+
+
+
+
             event.update()
 
         table.flush()
@@ -266,6 +271,7 @@ class ProcessIndexedEvents(ProcessEvents):
 
         timings = self._process_traces_from_event_list(events,
                                                        length=len(self.indexes))
+
         return timings
 
     def get_traces_for_indexed_event_index(self, idx):

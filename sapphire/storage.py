@@ -343,7 +343,7 @@ class ReconstructedEvent(tables.IsDescription):
     reference_shower_size = tables.Float32Col()
     reconstructed_shower_size = tables.Float32Col()
     min_n134 = tables.Float32Col()
-
+    traces = tables.Int32Col(shape=(4, 2800))
 
 class KascadeEvent(tables.IsDescription):
 
@@ -423,3 +423,6 @@ class ProcessedHisparcEvent(tables.IsDescription):
     n2 = tables.Float32Col(dflt=-1)
     n3 = tables.Float32Col(dflt=-1)
     n4 = tables.Float32Col(dflt=-1)
+
+    traces_full = tables.Int32Col(shape=(4,2800), dflt=-1)
+
