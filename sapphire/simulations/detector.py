@@ -16,10 +16,12 @@ from .base import BaseSimulation
 
 class HiSPARCSimulation(BaseSimulation):
 
-    def __init__(self, updated_trigger=False, *args, **kwargs):
+    def __init__(self, updated_trigger=False, *args,
+                 **kwargs):
         super(HiSPARCSimulation, self).__init__(*args, **kwargs)
         self.updated_trigger = updated_trigger
         self.simulate_and_store_offsets()
+
 
     def simulate_and_store_offsets(self):
         """Simulate and store station and detector offsets"""
@@ -313,10 +315,6 @@ class ErrorlessSimulation(HiSPARCSimulation):
 
         return 0.
 
-    @classmethod
-    def simulate_adc_sampling(cls, t):
-
-        return t
 
     @classmethod
     def simulate_signal_transport_time(cls, n=1):

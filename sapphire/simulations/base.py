@@ -48,12 +48,15 @@ class BaseSimulation(object):
     """
 
     def __init__(self, cluster, data, output_path='/', n=1, seed=None,
-                 progress=True):
+                 progress=True, save_detailed_traces=False, verbose=False):
         self.cluster = cluster
         self.data = data
         self.output_path = output_path
         self.n = n
         self.progress = progress
+        self.verbose = verbose
+        self.save_detailed_traces = save_detailed_traces
+
         self._prepare_output_tables()
 
         if seed is not None:
@@ -74,26 +77,27 @@ class BaseSimulation(object):
         self._prepare_station_tables()
         self._store_station_index()
 
-    def run(self):
+    def run(self, skip_large_distance=False):
         """Run the simulations."""
 
-        for (shower_id, shower_parameters) in enumerate(
-                self.generate_shower_parameters()):
+        for (shower_id, shower_parameters) in enumerate(self.generate_shower_parameters()):
             chosen_energy = np.log10( shower_parameters['energy'] )
             chosen_core_pos = shower_parameters['core_pos']
             chosen_radius = np.sqrt( chosen_core_pos[0]**2. + chosen_core_pos[1]**2. )
-            
+            if skip_large_distance:
+                if (chosen_energy < (13 + 0.1)) and (chosen_energy > (13 - 0.1)) and chosen_radius > 60:
+                    continue
+                if (chosen_energy < (13.5 + 0.1)) and (chosen_energy > (13.5 - 0.1)) and chosen_radius > 60:
+                    continue
+                if (chosen_energy < (14 + 0.1)) and (chosen_energy > (14 - 0.1)) and chosen_radius > 80:
+                    continue
+
+
+
             '''
-            if (chosen_energy < (12.5 + 0.1)) and (chosen_energy > (12.5 - 0.1)) and chosen_radius > 50:
-                continue
-            '''
-            if (chosen_energy < (13 + 0.1)) and (chosen_energy > (13 - 0.1)) and chosen_radius > 60:
-                continue
-            if (chosen_energy < (13.5 + 0.1)) and (chosen_energy > (13.5 - 0.1)) and chosen_radius > 60:
-                continue
-            if (chosen_energy < (14 + 0.1)) and (chosen_energy > (14 - 0.1)) and chosen_radius > 80:
-                continue
-            '''
+                if (chosen_energy < (12.5 + 0.1)) and (chosen_energy > (12.5 - 0.1)) 
+                and chosen_radius > 50:
+                    continue
             if (chosen_energy < (14.5 + 0.1)) and (chosen_energy > (14.5 - 0.1)) and chosen_radius > 110:
                 continue
             if (chosen_energy < (15 + 0.1)) and (chosen_energy > (15 - 0.1)) and chosen_radius > 150:
@@ -143,7 +147,6 @@ class BaseSimulation(object):
                 event_index = \
                     self.store_station_observables(station_id,
                                                    station_observables)
-                print('writing event')
                 station_events.append((station_id, event_index))
 
         return station_events
@@ -222,7 +225,9 @@ class BaseSimulation(object):
                                'pulseheights_muon': 4 * [-1.],
                                'pulseheights_electron': 4 * [-1.],
                                'pulseheights_gamma': 4 * [-1.],
-                               'traces': np.empty([4,80])}
+                               'traces': np.empty([4,80]),
+                               'photontimes': 4* [-1],
+                               'coordinates': np.zeros([4,2])}
 
         for detector_id, observables in enumerate(detector_observables, 1):
             for key, value in iteritems(observables):
@@ -231,10 +236,10 @@ class BaseSimulation(object):
                     station_observables[key] = value
                 elif key in ['pulseheights', 'integrals', 'integrals_muon','integrals_electron',
                              'integrals_gamma', 'pulseheights_muon', 'pulseheights_electron',
-                             'pulseheights_gamma','traces']:
+                             'pulseheights_gamma','traces', 'photontimes',
+                             'coordinates' ]:
                     idx = detector_id - 1
                     station_observables[key][idx] = value
-        print(station_observables)
         return station_observables
 
     def store_station_observables(self, station_id, station_observables):
@@ -376,9 +381,16 @@ class BaseSimulation(object):
             description["pulseheights_muon"] = tables.Int32Col(shape=4, dflt=-1.0, pos=42)
             description["pulseheights_electron"] = tables.Int32Col(shape=4, dflt=-1.0, pos=43)
             description["pulseheights_gamma"] = tables.Int32Col(shape=4, dflt=-1.0, pos=44)
-
+            description["coordinates"] = tables.Float32Col(shape=(4,2), dflt=-1, pos=45)
+            description["photontimes_idx"] = tables.Int32Col(shape=4, dflt=-1, pos=46)
+            description["seeds"] = tables.Int32Col(shape=2, dflt=-1, pos=47)
             self.data.create_table(station_group, 'events', description,
                                    expectedrows=self.n)
+            if self.save_detailed_traces:
+                self.data.create_vlarray(station_group, 'photontimes',
+                                         tables.Float32Atom(shape=()),
+                                         'Arrival times of photons')
+
             self.station_groups.append(station_group)
 
     def _store_station_index(self):
