@@ -34,4 +34,5 @@ __all__ = ['base',
            'groundparticles',
            'ldf',
            'showerfront',
-           'gammas']
+           'gammas',
+           'combine']
