@@ -79,42 +79,36 @@ class BaseSimulation(object):
 
     def run(self, skip_large_distance=False):
         """Run the simulations."""
+        if skip_large_distance:
+            xy_stations = np.zeros((len(self.cluster.stations), 2))
+            for i, station in enumerate(self.cluster.stations):
+                x, y = station.get_xy_coordinates()
+                xy_stations[i,0] = x
+                xy_stations[i,1] = y
+
+        distance_cuts = np.array([
+            (13, 60),
+            (13.5, 60),
+            (14, 80),
+            (14.5, 100),
+            (15, 130),
+            (15.5, 200),
+            (16, 250),
+            (16.5, 500)
+        ], dtype=[('energy', 'f4'), ('distance_squared', 'f4')])
+        distance_cuts['distance_squared'] = distance_cuts['distance_squared']**2
 
         for (shower_id, shower_parameters) in enumerate(self.generate_shower_parameters()):
             chosen_energy = np.log10( shower_parameters['energy'] )
             chosen_core_pos = shower_parameters['core_pos']
             chosen_radius = np.sqrt( chosen_core_pos[0]**2. + chosen_core_pos[1]**2. )
             if skip_large_distance:
-                if (chosen_energy < (13 + 0.1)) and (chosen_energy > (13 - 0.1)) and chosen_radius > 60:
-                    continue
-                if (chosen_energy < (13.5 + 0.1)) and (chosen_energy > (13.5 - 0.1)) and chosen_radius > 60:
-                    continue
-                if (chosen_energy < (14 + 0.1)) and (chosen_energy > (14 - 0.1)) and chosen_radius > 80:
+                distance = np.min(np.square(xy_stations[:,0] - chosen_core_pos[0]) + \
+                           np.square(xy_stations[:,1] - chosen_core_pos[1]))
+                energy = np.argmin(np.abs(chosen_energy-distance_cuts['energy']))
+                if distance > distance_cuts[energy]['distance_squared']:
                     continue
 
-
-
-            '''
-                if (chosen_energy < (12.5 + 0.1)) and (chosen_energy > (12.5 - 0.1)) 
-                and chosen_radius > 50:
-                    continue
-            if (chosen_energy < (14.5 + 0.1)) and (chosen_energy > (14.5 - 0.1)) and chosen_radius > 110:
-                continue
-            if (chosen_energy < (15 + 0.1)) and (chosen_energy > (15 - 0.1)) and chosen_radius > 150:
-                continue
-            if (chosen_energy < (15.5 + 0.1)) and (chosen_energy > (15.5 - 0.1)) and chosen_radius > 250:
-                continue
-            if (chosen_energy < (16 + 0.1)) and (chosen_energy > (16 - 0.1)) and chosen_radius > 350:
-                continue
-            if (chosen_energy < (16.5 + 0.1)) and (chosen_energy > (16.5 - 0.1)) and chosen_radius > 500:
-                continue
-            if (chosen_energy < (17 + 0.1)) and (chosen_energy > (17 - 0.1)) and chosen_radius > 600:
-                continue
-            if (chosen_energy < (17.5 + 0.1)) and (chosen_energy > (17.5 - 0.1)) and chosen_radius > 1000:
-                continue
-            if (chosen_energy < (18 + 0.1)) and (chosen_energy > (18 - 0.1)) and chosen_radius > 1000:
-                continue
-            '''
             if self.use_preliminary:
                 station_events = self.pretrigger_simulate_events_for_shower(shower_parameters)
             else:
