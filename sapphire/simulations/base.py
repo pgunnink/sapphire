@@ -56,7 +56,7 @@ class BaseSimulation(object):
         self.progress = progress
         self.verbose = verbose
         self.save_detailed_traces = save_detailed_traces
-
+        self.use_preliminary = False
         self._prepare_output_tables()
 
         if seed is not None:
@@ -115,8 +115,10 @@ class BaseSimulation(object):
             if (chosen_energy < (18 + 0.1)) and (chosen_energy > (18 - 0.1)) and chosen_radius > 1000:
                 continue
             '''
-
-            station_events = self.simulate_events_for_shower(shower_parameters)
+            if self.use_preliminary:
+                station_events = self.pretrigger_simulate_events_for_shower(shower_parameters)
+            else:
+                station_events = self.simulate_events_for_shower(shower_parameters)
             # No need to store coincidences of a cluster containing only one station
             if len(self.cluster.stations) > 1:
                 self.store_coincidence(shower_id, shower_parameters,
@@ -150,6 +152,12 @@ class BaseSimulation(object):
                 station_events.append((station_id, event_index))
 
         return station_events
+
+    def pretrigger_simulate_events_for_shower(self, shower_parameters):
+        """This function can be overwritten in order to include a pre-trigger (see
+        GEANT implementation)"""
+        return self.simulate_events_for_shower(shower_parameters)
+
 
     def simulate_station_response(self, station, shower_parameters):
         """Simulate station response to a shower."""

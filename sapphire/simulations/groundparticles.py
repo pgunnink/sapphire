@@ -45,7 +45,8 @@ MAX_VOLTAGE = 4096*0.57/1e3
 
 class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
 
-    def __init__(self, corsikafile_path, max_core_distance, cutoff_number_of_particles=10, *args, **kwargs):
+    def __init__(self, corsikafile_path, max_core_distance,
+                 trigger_function=None, cutoff_number_of_particles=10, *args, **kwargs):
         """Simulation initialization
 
         :param corsikafile_path: path to the corsika.h5 file containing
@@ -59,6 +60,10 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         self.corsikafile = tables.open_file(corsikafile_path, 'r')
         self.groundparticles = self.corsikafile.get_node('/groundparticles')
         self.max_core_distance = max_core_distance
+        if trigger_function is not None:
+            self.trigger_function = trigger_function
+            self.use_preliminary = True
+
 
     def __del__(self):
         self.finish()
@@ -204,6 +209,40 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
         trace = np.array(trace)
 
         return trace
+
+    def pretrigger_simulate_events_for_shower(self, shower_parameters):
+        """Simulate station events for a single shower"""
+        station_events = []
+        particles_station = []
+        for station_id, station in enumerate(self.cluster.stations):
+            detectors_particles = self.preliminary_detectors_response(
+                station.detectors, shower_parameters)
+            particles_station.append(detectors_particles)
+
+        if self.trigger_function(particles_station):
+            for station_id, station in enumerate(self.cluster.stations):
+                has_triggered, station_observables = \
+                    self.simulate_station_response(station,
+                                                   shower_parameters)
+
+                if has_triggered:
+                    event_index = \
+                        self.store_station_observables(station_id,
+                                                       station_observables)
+                    station_events.append((station_id, event_index))
+
+        return station_events
+
+
+    def preliminary_detectors_response(self, detectors, shower_parameters):
+        detector_particles = []
+        n_detected = []
+        for detector in detectors:
+            particles = self.get_particles_in_detector(detector, shower_parameters)
+            detector_particles.append(particles)
+        return detector_particles
+
+
 
     def simulate_detector_response(self, detector, shower_parameters):
         """Simulate detector response to a shower.
@@ -1393,8 +1432,8 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
     DATA = '/dcache/hisparc/kaspervd/corsika_low_energy_cuts/data/{seeds}/corsika.h5'
 
     def __init__(self, corsikaoverview_path, max_core_distance, min_energy,
-                 max_energy, cutoff_number_of_particles=None, zenith=None, *args,
-                 **kwargs):
+                 max_energy, cutoff_number_of_particles=None, zenith=None,
+                 trigger_function=None, *args, **kwargs):
         """Simulation initialization
 
         :param corsikaoverview_path: path to the corsika_overview.h5 file
@@ -1424,6 +1463,10 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
         self.available_azimuths = {e: self.cq.available_parameters('azimuth',
                                                                    energy=e)
                                   for e in self.available_energies}
+
+        if trigger_function is not None:
+            self.trigger_function = trigger_function
+            self.use_preliminary = True
 
     def finish(self):
         """Clean-up after simulation"""
