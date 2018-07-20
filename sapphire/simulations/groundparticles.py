@@ -219,7 +219,7 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
                 station.detectors, shower_parameters)
             particles_station.append(detectors_particles)
 
-        if self.trigger_function(particles_station):
+        if self.trigger_function(particles_station, shower_parameters):
             for station_id, station in enumerate(self.cluster.stations):
                 has_triggered, station_observables = \
                     self.simulate_station_response(station,
@@ -1433,7 +1433,8 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
     def __init__(self, corsikaoverview_path, max_core_distance, min_energy,
                  max_energy, cutoff_number_of_particles=None, zenith=None,
-                 trigger_function=None, *args, **kwargs):
+                 trigger_function=None, skip_large_distance=False,
+                 minimum_stations_distance=0, n_reuse=1, *args, **kwargs):
         """Simulation initialization
 
         :param corsikaoverview_path: path to the corsika_overview.h5 file
@@ -1467,6 +1468,9 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
         if trigger_function is not None:
             self.trigger_function = trigger_function
             self.use_preliminary = True
+        self.minimum_stations_distance = minimum_stations_distance
+        self.skip_large_distance = skip_large_distance
+        self.n_reuse = n_reuse
 
     def finish(self):
         """Clean-up after simulation"""
@@ -1481,24 +1485,48 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
         interpret these parameters as the position of the cluster, or the
         rotation of the cluster!  Interpret them as *shower* parameters.
 
+        This function also checks for the distance
         :return: dictionary with shower parameters: core_pos
                  (x, y-tuple) and azimuth.
 
         """
         r = self.max_core_distance
-        n_reuse = 1
+        n_reuse = self.n_reuse
         now = int(time())
+
+        if self.skip_large_distance:
+            # create an array with the list of x,y coordinates of the stations
+            xy_stations = np.zeros((len(self.cluster.stations), 2))
+            for i, station in enumerate(self.cluster.stations):
+                x, y = station.get_xy_coordinates()
+                xy_stations[i, 0] = x
+                xy_stations[i, 1] = y
+            # best guess, a bit conservative
+            distance_cuts = np.array([
+                (13, 60),
+                (13.5, 60),
+                (14, 80),
+                (14.5, 100),
+                (15, 130),
+                (15.5, 200),
+                (16, 250),
+                (16.5, 500)
+            ], dtype=[('energy', 'f4'), ('distance_squared', 'f4')])
+            # square the distances, because calculating square roots is expensive
+            distance_cuts['distance_squared'] = distance_cuts['distance_squared'] ** 2
+
 
         for i in pbar(range(self.n), show=self.progress):
             sim = self.select_simulation()
             if sim is None:
                 continue
+
             corsika_parameters = {'zenith': sim['zenith'],
                                   'size': sim['n_electron'],
                                   'energy': sim['energy'],
                                   'particle': sim['particle_id']}
-            self.corsika_azimuth = sim['azimuth']
 
+            self.corsika_azimuth = sim['azimuth']
             self.corsika_zenith = sim['zenith']
             self.corsika_energy = sim['energy']
             self.cr_particle = sim['particle_id']
@@ -1522,8 +1550,13 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
                     for j in range(n_reuse):
                         ext_timestamp = (now + i + (float(j) / n_reuse)) * int(1e9)
-                        
-                        x, y = self.generate_core_position(r)
+
+                        x, y = self.generate_core_position(r, skip_large_distance=self.skip_large_distance,
+                                                           distance_cuts=distance_cuts,
+                                                           energy=sim['energy'],
+                                                           xy_stations=xy_stations,
+                                                           minimum_stations_distance=self.minimum_stations_distance)
+
                         self.core_distance = np.sqrt(x**2 + y**2)
                         self.shower_azimuth = self.generate_azimuth()
 
@@ -1558,7 +1591,12 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
                     for j in range(n_reuse):
                         ext_timestamp = (now + i + (float(j) / n_reuse)) * int(1e9)
-                        x, y = self.generate_core_position(r)
+                        x, y = self.generate_core_position(r,
+                                                           skip_large_distance=self.skip_large_distance,
+                                                           distance_cuts=distance_cuts,
+                                                           energy=sim['energy'],
+                                                           xy_stations=xy_stations,
+                                                           minimum_stations_distance=self.minimum_stations_distance)
                         self.core_distance = np.sqrt(x**2 + y**2)
                         self.shower_azimuth = self.generate_azimuth()
 
@@ -1574,6 +1612,54 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
     
                         shower_parameters.update(corsika_parameters)
                         yield shower_parameters
+
+    @classmethod
+    def generate_core_position(cls, r_max,  skip_large_distance=False,
+                               distance_cuts=None, energy=None,  xy_stations=None,
+                               minimum_stations_distance=None):
+        """
+        This function implements a better core position generation, using distance cuts
+        per energy to generate an x, y position such that minimum_stations_distance
+        number of stations fall within the reach of the shower.
+
+        This goes here because it is the most efficient: it prevents having to
+        continually load multiple showers only to throw them away because they are
+        thrown in the wrong position. It also allows the reuse of showers.
+        :param r_max: maximum distance from the center of the cluster
+        :param distance_cuts: np structured array with column energies and
+        corresponding column with the distance to cut at squared (see
+        MultipleGroundParticlesGEANT4Simulation.generate_shower_parameters() for an
+        example)
+        :param energy: energy of the shower
+        :param xy_stations: list of xy positions of the stations, shape (len(stations),2)
+        :param skip_large_distance: if True skip large distances
+        :param minimum_stations_distance: minimum amount of stations to be hit
+        :return: x, y position of the cluster
+        """
+
+        if skip_large_distance:
+            while True:
+                r = sqrt(np.random.uniform(0, r_max ** 2))
+                phi = np.random.uniform(-pi, pi)
+                x = r * cos(phi)
+                y = r * sin(phi)
+                # calculate the distance from the shower center to every station
+                distance = np.square(xy_stations[:, 0] - x) + \
+                           np.square(xy_stations[:, 1] - y)
+                # find the energy of the shower in the array distance_cuts
+                energy = np.argmin(np.abs(energy- distance_cuts['energy']))
+                if np.count_nonzero(distance > distance_cuts[energy][ \
+                        'distance_squared']) >= minimum_stations_distance:
+                    continue
+                else:
+                    return x, y
+
+        else:
+            r = sqrt(np.random.uniform(0, r_max ** 2))
+            phi = np.random.uniform(-pi, pi)
+            x = r * cos(phi)
+            y = r * sin(phi)
+            return x, y
 
 
     def select_simulation(self):

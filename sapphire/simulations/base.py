@@ -77,37 +77,21 @@ class BaseSimulation(object):
         self._prepare_station_tables()
         self._store_station_index()
 
-    def run(self, skip_large_distance=False):
-        """Run the simulations."""
-        if skip_large_distance:
-            xy_stations = np.zeros((len(self.cluster.stations), 2))
-            for i, station in enumerate(self.cluster.stations):
-                x, y = station.get_xy_coordinates()
-                xy_stations[i,0] = x
-                xy_stations[i,1] = y
+    def run(self):
+        """
+        Run the simulations.
+        :param skip_large_distance: if True skip distances where we know that the
+        shower has no effect
+        :param minimum_stations_distance: the minimum number of stations that should be
+        within the reach of the shower
+        :return:
+        """
+        for (shower_id, shower_parameters) in enumerate(
+                self.generate_shower_parameters()):
 
-        distance_cuts = np.array([
-            (13, 60),
-            (13.5, 60),
-            (14, 80),
-            (14.5, 100),
-            (15, 130),
-            (15.5, 200),
-            (16, 250),
-            (16.5, 500)
-        ], dtype=[('energy', 'f4'), ('distance_squared', 'f4')])
-        distance_cuts['distance_squared'] = distance_cuts['distance_squared']**2
-
-        for (shower_id, shower_parameters) in enumerate(self.generate_shower_parameters()):
             chosen_energy = np.log10( shower_parameters['energy'] )
             chosen_core_pos = shower_parameters['core_pos']
             chosen_radius = np.sqrt( chosen_core_pos[0]**2. + chosen_core_pos[1]**2. )
-            if skip_large_distance:
-                distance = np.min(np.square(xy_stations[:,0] - chosen_core_pos[0]) + \
-                           np.square(xy_stations[:,1] - chosen_core_pos[1]))
-                energy = np.argmin(np.abs(chosen_energy-distance_cuts['energy']))
-                if distance > distance_cuts[energy]['distance_squared']:
-                    continue
 
             if self.use_preliminary:
                 station_events = self.pretrigger_simulate_events_for_shower(shower_parameters)
@@ -118,7 +102,7 @@ class BaseSimulation(object):
                 self.store_coincidence(shower_id, shower_parameters,
                                        station_events)
 
-    def generate_shower_parameters(self):
+    def generate_shower_parameters(self, skip_large_distance=False):
         """Generate shower parameters like core position, energy, etc."""
         shower_parameters = {'core_pos': (None, None),
                              'zenith': None,
