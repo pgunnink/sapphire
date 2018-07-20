@@ -236,7 +236,6 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
 
     def preliminary_detectors_response(self, detectors, shower_parameters):
         detector_particles = []
-        n_detected = []
         for detector in detectors:
             particles = self.get_particles_in_detector(detector, shower_parameters)
             detector_particles.append(particles)
@@ -720,7 +719,6 @@ class GroundParticlesGEANT4Simulation(ErrorlessSimulation):
                  (xproj - detector_boundary, xproj + detector_boundary,
                   yproj - detector_boundary, yproj + detector_boundary,
                   line1, line1, line2, line2))
-
         return self.groundparticles.read_where(query)
 
     def get_line_boundary_eqs(self, p0, p1, p2):
@@ -1541,7 +1539,7 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
                 localDATA = tmpdir+"/{seeds}/corsika.h5"
                 #print("Load local")
 
-                with tables.open_file(localDATA.format(seeds=seeds), 'r') as data:
+                with tables.open_file(localDATA.format(seeds=seeds), 'r', driver="H5FD_CORE") as data:
                     try:
                         self.groundparticles = data.get_node('/groundparticles')
                     except tables.NoSuchNodeError:
@@ -1575,7 +1573,8 @@ class MultipleGroundParticlesGEANT4Simulation(GroundParticlesGEANT4Simulation):
 
             else: # Use the regular dcache data
                 #print("Load dCache")
-                with tables.open_file(self.DATA.format(seeds=seeds), 'r') as data:
+                with tables.open_file(self.DATA.format(seeds=seeds), 'r',
+                                      driver="H5FD_CORE") as data:
                     try:
                         self.groundparticles = data.get_node('/groundparticles')
                         '''
